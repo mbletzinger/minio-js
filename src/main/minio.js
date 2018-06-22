@@ -15,6 +15,11 @@
  */
 
 require('source-map-support').install()
+var util = require('util');
+
+var dump = function(obj) {
+  return util.inspect(obj, { color: true, depth: null});
+}
 
 import fs from 'fs'
 import Crypto from 'crypto'
@@ -334,12 +339,14 @@ export class Client {
     if(!isFunction(cb)) {
       throw new TypeError('callback should be of type "function"')
     }
+    console.log('make request options ' + dump(options));
     if (!options.headers) options.headers = {}
     if (options.method === 'POST' || options.method === 'PUT' || options.method === 'DELETE') {
       options.headers['content-length'] = payload.length
     }
     var sha256sum = ''
     if (this.enableSHA256) sha256sum = Crypto.createHash('sha256').update(payload).digest('hex')
+    console.log('make request SHA256 ' + (this.enableSHA256 ? 'enabled ' : 'disabled ') + sha256sum + " from " + payload);
     var stream = readableStream(payload)
     this.makeRequestStream(options, stream, sha256sum, statusCode, region, returnResponse, cb)
   }
@@ -368,7 +375,8 @@ export class Client {
     if(!isFunction(cb)) {
       throw new TypeError('callback should be of type "function"')
     }
-
+    console.log('Region ' + region)
+    console.log('Status Code ' + statusCode)
     // sha256sum will be empty for anonymous or https requests
     if (!this.enableSHA256 && sha256sum.length !== 0) {
       throw new errors.InvalidArgumentError(`sha256sum expected to be empty for anonymous or https requests`)
@@ -382,6 +390,7 @@ export class Client {
       if (e) return cb(e)
       options.region = region
       var reqOptions = this.getRequestOptions(options)
+      console.log('Request Options ' + dump(reqOptions))
       if (!this.anonymous) {
         // For non-anonymous https requests sha256sum is 'UNSIGNED-PAYLOAD' for signature calculation.
         if (!this.enableSHA256) sha256sum = 'UNSIGNED-PAYLOAD'
@@ -394,6 +403,12 @@ export class Client {
           reqOptions.headers['x-amz-security-token'] = this.sessionToken
         }
 
+        console.log('Request Options  with amz header ' + dump(reqOptions))
+        console.log('Authorization inputs request options, accessKey, secrestKey, region, date ' + dump(reqOptions) +
+          ", " + this.accessKey +
+          ", " + this.secretKey +
+          ", " + region +
+          ", " + date)
         var authorization = signV4(reqOptions, this.accessKey, this.secretKey, region, date)
         reqOptions.headers.authorization = authorization
       }
